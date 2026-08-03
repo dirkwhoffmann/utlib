@@ -10,6 +10,8 @@ add_executable(unittester
     chrono_tests.cpp
     files_tests.cpp
     storage_tests.cpp
+    abilities_tests.cpp
+    buffer_tests.cpp
 )
 
 target_link_libraries(unittester PRIVATE utlib)

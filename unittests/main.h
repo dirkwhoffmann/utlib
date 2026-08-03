@@ -18,6 +18,8 @@
 #include <utl/storage.h>
 #include <utl/support.h>
 #include <utl/wrappers.h>
+#include <utl/abilities/Dumpable.h>
+#include <utl/abilities/Hashable.h>
 #include <utl/types/UUID.h>
 
 /* Included directly because the storage.h umbrella does not list them. That

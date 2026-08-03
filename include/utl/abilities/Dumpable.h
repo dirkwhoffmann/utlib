@@ -20,14 +20,21 @@ struct DumpOpt
     isize base;         // 8 (Oct)  | 10 (Dec)  | 16 (Hex)
 };
 
+/* Defaults matter here, because every member this struct is built with a
+ * designated initialiser for is one the caller named -- the rest are value
+ * initialised. 'size' in particular selects the data column width, and fmt()
+ * emits no data columns at all when it is 0; a dump with neither data nor an
+ * ASCII column then advances no counter and never terminates. That is exactly
+ * what hexDump() below used to do.
+ */
 struct DumpFmt
 {
-    char   size;        // 'b' (Byte) | 'w' (Word) | 'l' (Long)
-    isize  columns;     // Number of data columns
-    isize  groups;      // Number of groups to split columns into
-    bool   nr;          // Add a column showing the current line number
-    bool   offset;      // Add a column showing the current buffer offset
-    bool   ascii;       // Add an ASCII column
+    char   size    = 'b';   // 'b' (Byte) | 'w' (Word) | 'l' (Long)
+    isize  columns = 16;    // Number of data columns
+    isize  groups  = 1;     // Number of groups to split columns into
+    bool   nr      = false; // Add a column showing the current line number
+    bool   offset  = false; // Add a column showing the current buffer offset
+    bool   ascii   = false; // Add an ASCII column
 
     string fmt() const; // Translates options to a format string
 };
