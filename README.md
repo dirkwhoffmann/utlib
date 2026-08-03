@@ -4,18 +4,21 @@ A lightweight C++20 utility library, extracted from the
 [Silicium](https://www.dirkwhoffmann.de) emulator project and maintained here as
 a standalone repository.
 
-## What's in it
+## Projects using utlib
 
-| Module | Header | Contents |
-| --- | --- | --- |
-| Types | `utl/types/...` | Fixed-width integer aliases, `UUID`, exception base classes |
-| Support | `utl/support.h` | String helpers, bit manipulation macros, byte-order conversion |
-| I/O | `utl/io.h` | File and directory helpers, directory syncing, header sniffing, parsing and formatting |
-| Storage | `utl/storage.h` | `Buffer`, `RingBuffer`, `Mailbox`, and a ZIP archive wrapper |
-| Chrono | `utl/chrono.h` | `Time` and `Clock` |
-| Abilities | `utl/abilities.h` | Mixins: `Reflectable`, `Dumpable`, `Loggable`, `Compressible`, ... |
-| Wrappers | `utl/wrappers.h` | `Backed`, `Sticky`, `Animated` value wrappers |
-| Concurrency | `utl/concurrency.h` | Threading helpers |
+The library is currently used by the following projects:
+
+<a href="https://github.com/dirkwhoffmann/virtualc64" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-vc.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **Virtual64**
+
+<a href="https://github.com/dirkwhoffmann/peddle" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-pe.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **Peddle**
+
+<a href="https://github.com/dirkwhoffmann/vamiga" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-va.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **vAmiga**
+
+<a href="https://github.com/dirkwhoffmann/moira" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-mo.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **Moira**
+  
+<a href="https://github.com/dirkwhoffmann/retrovault" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-vault.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **RetroVault**
+
+## Note
 
 Third-party code lives in `thirdparty/` and keeps its own licensing
 (`kuba-zip`/`miniz`, `lz4`, `nlohmann/json`, `cpp-httplib`).
