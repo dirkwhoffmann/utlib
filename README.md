@@ -84,4 +84,8 @@ target_link_libraries(my_target PRIVATE utlib)
 
 ## License
 
-utlib is licensed under the Mozilla Public License v2. See [LICENSE](LICENSE).
+utlib (excluding the code contained in the *thirdparty/* directory) is licensed 
+under the Mozilla Public License v2.0. See [LICENSE](LICENSE) for details.
+
+Third-party components located in *thirdparty/* retain their original licenses.
+
