@@ -78,7 +78,15 @@ Time::sleep()
 {
     static struct mach_timebase_info tb = timebaseInfo();
     if (ticks > 0) {
-        mach_wait_until(now().asNanoseconds() + (ticks * tb.denom / tb.numer));
+
+        /* Both terms have to be in mach time units, which is what
+         * mach_wait_until() takes. The deadline therefore starts from
+         * mach_absolute_time() and not from now(), which has already been
+         * scaled to nanoseconds -- mixing the two made the deadline roughly
+         * numer/denom times too far away (a factor of ~42 on Apple silicon),
+         * so this slept until long past the heat death of the process.
+         */
+        mach_wait_until(mach_absolute_time() + (ticks * tb.denom / tb.numer));
     }
 }
 

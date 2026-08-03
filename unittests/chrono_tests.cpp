@@ -58,13 +58,44 @@ TEST_CASE("Time") {
         CHECK(Time::milliseconds(-5) < Time());
     }
 
-    SUBCASE("now() advances") {
+    /* The epoch of now() is deliberately not asserted here.
+     *
+     * It differs per platform: mach_absolute_time() and CLOCK_MONOTONIC both
+     * count from boot, while the generic implementation counts from the first
+     * call to now() -- so on Windows the very first call returns exactly 0.
+     * All three are valid monotonic clocks; only differences between two
+     * readings are meaningful, and that is all these check.
+     */
+    SUBCASE("now() never goes backwards") {
 
         auto t1 = Time::now();
         auto t2 = Time::now();
 
         CHECK(t2 >= t1);
-        CHECK(t1.asNanoseconds() > 0);
+        CHECK(t1.asNanoseconds() >= 0);
+    }
+
+    SUBCASE("sleep() waits roughly the requested time") {
+
+        auto t1 = Time::now();
+        Time::milliseconds(20).sleep();
+        auto t2 = Time::now();
+
+        /* An upper bound as well as a lower one, because the failure this
+         * guards against is sleeping far too *long*: the macOS path used to
+         * mix nanoseconds into a mach-time deadline and hung outright. Kept
+         * loose enough that a loaded CI runner will not trip it.
+         */
+        CHECK((t2 - t1).asMilliseconds() < 5000);
+
+        CHECK(t2 > t1);
+
+        /* A generous lower bound. Sleep may overshoot by a lot on a loaded CI
+         * runner, so only the floor is checked -- and that floor is under the
+         * requested 20ms, because a coarse system clock can report slightly
+         * less than the time actually slept.
+         */
+        CHECK((t2 - t1).asMilliseconds() >= 5);
     }
 
     SUBCASE("buildTime produces a non-empty stamp") {
