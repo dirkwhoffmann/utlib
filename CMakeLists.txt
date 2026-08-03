@@ -34,6 +34,21 @@ file(GLOB_RECURSE UTL_SRC
 
 target_sources(utlib PRIVATE ${UTL_SRC})
 
+# zlib backs the gzip/gunzip codecs in Compressible. Deliberately optional
+# rather than REQUIRED: the library is fine without it -- those two codecs
+# throw and the rest (lz4, rle2) are unaffected -- and the Windows CI leg has
+# no zlib to find. USE_ZLIB is PUBLIC so it reaches the tests, which select
+# between a round-trip check and a throws-check on it.
+find_package(ZLIB)
+
+if(ZLIB_FOUND)
+  target_link_libraries(utlib PUBLIC ZLIB::ZLIB)
+  target_compile_definitions(utlib PUBLIC USE_ZLIB=1)
+  message(STATUS "utlib: zlib found, gzip/gunzip enabled")
+else()
+  message(STATUS "utlib: zlib not found, gzip/gunzip will throw")
+endif()
+
 if(UTLIB_COVERAGE)
   utlib_enable_coverage(utlib)
 endif()

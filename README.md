@@ -56,6 +56,10 @@ cmake -B build
 cmake --build build
 ```
 
+zlib is picked up automatically if present and enables the `gzip`/`gunzip`
+codecs in `Compressible`. It is optional: without it those two throw and
+everything else, `lz4` and `rle2` included, is unaffected.
+
 ## Running the tests
 
 The test suite uses [doctest](https://github.com/doctest/doctest), vendored as a
