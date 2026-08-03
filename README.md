@@ -1,27 +1,53 @@
 # utlib
 
-A lightweight C++20 utility library, extracted from the
-[Silicium](https://www.dirkwhoffmann.de) emulator project and maintained here as
-a standalone repository.
+A lightweight C++20 utility library.
+
+## About
+
+utlib is a personal, utility-driven codebase born out of the specific requirements of my emulator development projects. It is not designed or packaged as a comprehensive, general-purpose library for the broader public. Instead, it serves as a curated collection of helpers, custom data structures, and foundational tools tailored to my own software architecture.
+
+This repository acts as the master copy of the library. By keeping it in a dedicated, standalone space rather than embedding copies inside each individual project, I can centralize updates, maintain a single source of truth, and push improvements seamlessly across all dependent applications.
 
 ## Projects using utlib
 
 The library is currently used by the following projects:
 
-<a href="https://github.com/dirkwhoffmann/virtualc64" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-vc.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **Virtual64**
-
-<a href="https://github.com/dirkwhoffmann/peddle" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-pe.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **Peddle**
-
-<a href="https://github.com/dirkwhoffmann/vamiga" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-va.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **vAmiga**
-
-<a href="https://github.com/dirkwhoffmann/moira" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-mo.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **Moira**
-  
-<a href="https://github.com/dirkwhoffmann/retrovault" class="image left"><img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-vault.png" width="100" height="100" alt="Icon" align="middle"></a>&nbsp;&nbsp; **RetroVault**
-
-## Note
-
-Third-party code lives in `thirdparty/` and keeps its own licensing
-(`kuba-zip`/`miniz`, `lz4`, `nlohmann/json`, `cpp-httplib`).
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/dirkwhoffmann/virtualc64">
+        <img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-vc.png" width="80" height="80" alt="Virtual64 Icon">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/dirkwhoffmann/peddle">
+        <img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-pe.png" width="80" height="80" alt="Peddle Icon">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/dirkwhoffmann/vamiga">
+        <img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-va.png" width="80" height="80" alt="vAmiga Icon">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/dirkwhoffmann/moira">
+        <img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-mo.png" width="80" height="80" alt="Moira Icon">
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/dirkwhoffmann/retrovault">
+        <img src="https://github.com/dirkwhoffmann/dirkwhoffmann.github.io/blob/main/images/ad-vault.png" width="80" height="80" alt="RetroVault Icon">
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong><a href="https://github.com/dirkwhoffmann/virtualc64">Virtual64</a></strong></td>
+    <td align="center"><strong><a href="https://github.com/dirkwhoffmann/peddle">Peddle</a></strong></td>
+    <td align="center"><strong><a href="https://github.com/dirkwhoffmann/vamiga">vAmiga</a></strong></td>
+    <td align="center"><strong><a href="https://github.com/dirkwhoffmann/moira">Moira</a></strong></td>
+    <td align="center"><strong><a href="https://github.com/dirkwhoffmann/retrovault">RetroVault</a></strong></td>
+  </tr>
+</table>
 
 ## Building
 
