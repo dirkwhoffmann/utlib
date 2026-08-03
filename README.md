@@ -72,6 +72,29 @@ Or run the binary directly, which accepts doctest's own options — for example
 ./build/unittests/unittester
 ```
 
+## Code coverage
+
+Coverage is measured with Clang's source-based instrumentation (or gcov under
+GCC) and is off by default, since the instrumentation changes what the compiler
+emits and slows the binary down.
+
+```bash
+cmake -B build-cov -DCMAKE_BUILD_TYPE=Debug -DUTLIB_COVERAGE=ON
+cmake --build build-cov --target coverage
+```
+
+The target runs the test suite, prints a per-file summary, and writes a
+browsable HTML report to `build-cov/coverage/html/index.html`. The tests
+themselves and `thirdparty/` are excluded from the figures; override with
+`-DUTLIB_COVERAGE_EXCLUDE=<regex>`.
+
+Build `Debug`: an optimised build inlines and folds code away, so the line
+counts stop matching the source. The target warns if the build type is anything
+else.
+
+Requires `llvm-profdata` and `llvm-cov` (found via `xcrun` on macOS, otherwise
+on `PATH`), or `gcovr` when building with GCC.
+
 ## Using it in another project
 
 The tests are only built when utlib is the top-level project, so it can be

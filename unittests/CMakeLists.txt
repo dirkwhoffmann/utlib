@@ -27,4 +27,8 @@ else()
 
 endif()
 
+if(UTLIB_COVERAGE)
+  utlib_enable_coverage(unittester)
+endif()
+
 add_test(NAME unittester COMMAND unittester)

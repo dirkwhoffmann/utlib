@@ -17,6 +17,9 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+# Optional code coverage instrumentation (see cmake/Coverage.cmake)
+include(cmake/Coverage.cmake)
+
 add_library(utlib)
 
 target_include_directories(utlib PUBLIC
@@ -30,6 +33,10 @@ file(GLOB_RECURSE UTL_SRC
         "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/*.c")
 
 target_sources(utlib PRIVATE ${UTL_SRC})
+
+if(UTLIB_COVERAGE)
+  utlib_enable_coverage(utlib)
+endif()
 
 # Only build the tests when utlib is the top-level project, so that adding this
 # repository to a consumer (e.g. via add_subdirectory) does not drag them in.

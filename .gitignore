@@ -33,7 +33,14 @@
 
 # Build directories
 build/
+build-*/
 cmake-build-*/
+
+# Coverage artefacts
+*.profraw
+*.profdata
+*.gcda
+*.gcno
 
 # macOS
 .DS_Store
