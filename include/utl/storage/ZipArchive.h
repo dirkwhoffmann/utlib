@@ -11,53 +11,45 @@
 
 #include "utl/storage/Buffer.h"
 #include <regex>
+#include <memory>
 
 struct zip_t;
 
 namespace utl {
 
+struct ZipDeleter {
+    void operator()(zip_t *z) const noexcept;
+};
+
 class ZipArchive {
 
-    // Path to the Zip archive
     fs::path path;
-
-    // KubaZip handle
-    zip_t *zip = nullptr;
+    std::unique_ptr<zip_t, ZipDeleter> zip;
 
 public:
 
     ZipArchive(const fs::path &path, char access = 'r');
-    ZipArchive(ZipArchive &&other) noexcept;
-    ZipArchive &operator=(ZipArchive &&other) noexcept;
+    ZipArchive(ZipArchive &&other) noexcept = default;
+    ZipArchive &operator=(ZipArchive &&other) noexcept = default;
     ZipArchive(const ZipArchive &) = delete;
     ZipArchive &operator=(const ZipArchive &) = delete;
-    ~ZipArchive() noexcept;
+    ~ZipArchive() noexcept = default;
 
-    void close() noexcept;
+    void close() noexcept { zip.reset(); }
     void swap(ZipArchive &other) noexcept;
 
-    // Returns the number of items in the archive
     isize size() const;
-
-    // Returns a list of all files in the archive
     vector<string> listFiles() const;
 
-    // Extracts a file from the archive
     std::vector<u8> uncompress(const string &fileName);
 
-    // Read files from the archive
-    void uncompress(const string &fileName, const fs::path &targetDir);
-    void uncompressAll(const fs::path &targetDir);
+    static constexpr u64 DEFAULT_MAX_UNCOMPRESSED_SIZE = 1024 * 1024 * 1024ULL;
+    void uncompress(const string &fileName, const fs::path &targetDir, u64 maxFileSize = DEFAULT_MAX_UNCOMPRESSED_SIZE);
+    void uncompressAll(const fs::path &targetDir, u64 maxFileSize = DEFAULT_MAX_UNCOMPRESSED_SIZE);
 
-    // Write files into the archive with absolute paths
-    // void write(const fs::path &file);
-    // void write(const std::vector<fs::path> &files);
-
-    // Write files into the archive with relative paths to root
     void write(const fs::path &file, const fs::path &root);
     void write(const std::vector<fs::path> &files, const fs::path &root);
 
-    // Replaced the archive with the provided files
     void replace(const std::vector<fs::path> &files, const fs::path &root);
 };
 

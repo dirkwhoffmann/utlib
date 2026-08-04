@@ -7,7 +7,6 @@
 // See https://mozilla.org/MPL/2.0 for license information
 // -----------------------------------------------------------------------------
 
-// #include "utl/common.h"
 #include "utl/storage/ZipArchive.h"
 #include "utl/io/IOError.h"
 #include "utl/storage/ZipError.h"
@@ -16,6 +15,12 @@
 #include <zip.h>
 
 namespace utl {
+
+void
+ZipDeleter::operator()(zip_t *z) const noexcept
+{
+    if (z) zip_close(z);
+}
 
 struct ZipEntry {
 
@@ -45,51 +50,20 @@ ZipArchive::ZipArchive(const fs::path &path, char access) : path(path)
         throw IOError(IOError::FILE_NOT_FOUND, path);
     }
 
+    zip_t *rawZip = nullptr;
     switch (access) {
 
-        case 'r': zip = zip_open(path.string().c_str(), 0, 'r'); break;
-        case 'w': zip = zip_open(path.string().c_str(), ZIP_DEFAULT_COMPRESSION_LEVEL, 'w'); break;
-        case 'a': zip = zip_open(path.string().c_str(), ZIP_DEFAULT_COMPRESSION_LEVEL, 'a'); break;
+        case 'r': rawZip = zip_open(path.string().c_str(), 0, 'r'); break;
+        case 'w': rawZip = zip_open(path.string().c_str(), ZIP_DEFAULT_COMPRESSION_LEVEL, 'w'); break;
+        case 'a': rawZip = zip_open(path.string().c_str(), ZIP_DEFAULT_COMPRESSION_LEVEL, 'a'); break;
         default:  throw ZipError(ZipError::INVALID_ZIP_MODE, "'" + string(1, access) + "'");
     }
 
-    if (zip == nullptr) {
+    if (rawZip == nullptr) {
         throw ZipError(ZipError::INVALID_ARCHIVE, path);
     }
-}
 
-ZipArchive::ZipArchive(ZipArchive &&other) noexcept
-{
-    path = other.path;
-    zip = other.zip;
-    other.path = fs::path {};
-    other.zip = nullptr;
-}
-
-ZipArchive &
-ZipArchive::operator=(ZipArchive &&other) noexcept
-{
-    if (this != &other) {
-
-        ZipArchive temporary(std::move(other));
-        this->swap(temporary);
-    }
-    return *this;
-}
-
-ZipArchive::~ZipArchive() noexcept
-{
-    close();
-}
-
-void
-ZipArchive::close() noexcept
-{
-    if (zip) {
-
-        zip_close(zip);
-        zip = nullptr;
-    }
+    zip.reset(rawZip);
 }
 
 void
@@ -102,7 +76,7 @@ ZipArchive::swap(ZipArchive &other) noexcept
 isize
 ZipArchive::size() const
 {
-    return zip ? isize(zip_entries_total(zip)) : 0;
+    return zip ? isize(zip_entries_total(zip.get())) : 0;
 }
 
 vector<string>
@@ -113,12 +87,12 @@ ZipArchive::listFiles() const
 
     for (int i = 0, n = (int)size(); i < n; ++i) {
 
-        auto ec = zip_entry_openbyindex(zip, i);
+        auto ec = zip_entry_openbyindex(zip.get(), i);
         if (ec != 0) throw ZipError(ZipError::KUBA_ZIP_ERROR, ec);
 
-        const char *name = zip_entry_name(zip);
+        const char *name = zip_entry_name(zip.get());
         if (name) result.emplace_back(name);
-        zip_entry_close(zip);
+        zip_entry_close(zip.get());
     }
 
     return result;
@@ -128,63 +102,74 @@ std::vector<u8>
 ZipArchive::uncompress(const string &fileName)
 {
     assert(zip);
-    ZipEntry open(zip, fileName);
+    ZipEntry open(zip.get(), fileName);
 
     void *buf = nullptr;
-    size_t bufsize;
+    size_t bufsize = 0;
 
-    if (auto ec = zip_entry_read(zip, &buf, &bufsize); ec < 0) {
-
+    if (auto ec = zip_entry_read(zip.get(), &buf, &bufsize); ec < 0) {
         free(buf);
         throw ZipError(ZipError::KUBA_ZIP_ERROR, ec);
     }
 
-    std::vector<u8> result((u8 *)buf, (u8 *)buf + bufsize);
-    free(buf);
-    return result;
+    std::unique_ptr<void, void(*)(void*)> guard(buf, ::free);
+    return std::vector<u8>(static_cast<u8*>(buf), static_cast<u8*>(buf) + bufsize);
+}
+
+static optional<fs::path>
+safeResolveTarget(const fs::path &baseDir, const fs::path &target)
+{
+    auto resolved = fs::weakly_canonical(baseDir / target);
+    auto rel      = fs::relative(resolved, baseDir);
+
+    if (rel.empty() || rel.string().starts_with("..") || rel.is_absolute()) {
+        return std::nullopt;
+    }
+    return resolved;
 }
 
 void
-ZipArchive::uncompress(const string &fileName, const fs::path &targetDir)
+ZipArchive::uncompress(const string &fileName, const fs::path &targetDir, u64 maxFileSize)
 {
     if (!fs::is_directory(targetDir)) {
-        throw IOError(ZipError::NOT_A_DIRECTORY, targetDir);
+        throw IOError(IOError::DIR_NOT_FOUND, targetDir);
     }
 
-    // Assemble target file name
-    auto targetFile = targetDir / fs::path(fileName);
+    auto baseDir    = fs::weakly_canonical(targetDir);
+    auto targetFile = safeResolveTarget(baseDir, fs::path(fileName));
+    if (!targetFile) {
+        throw ZipError(ZipError::INVALID_ARCHIVE, "Path traversal in zip entry: " + fileName);
+    }
 
-    // Create all parent directories (if needed)
-    fs::create_directories(targetFile.parent_path());
+    if (fs::is_symlink(*targetFile)) {
+        throw ZipError(ZipError::INVALID_ARCHIVE, "Target path is a symlink: " + targetFile->string());
+    }
 
-    // Unzip file
-    ZipEntry open(zip, fileName);
-    if (auto ec = zip_entry_fread(zip, targetFile.string().c_str()); ec < 0) {
-        throw ZipError(ZipError::KUBA_ZIP_ERROR, ec);
+    ZipEntry open(zip.get(), fileName);
+
+    if (fileName.ends_with('/') || zip_entry_isdir(zip.get())) {
+        fs::create_directories(*targetFile);
+        return;
+    }
+
+    if (maxFileSize > 0 && zip_entry_size(zip.get()) > maxFileSize) {
+        throw ZipError(ZipError::INVALID_ARCHIVE, "File size exceeds limit: " + fileName);
+    }
+
+    fs::create_directories(targetFile->parent_path());
+
+    if (auto ec = zip_entry_fread(zip.get(), targetFile->string().c_str()); ec < 0) {
+        throw ZipError(ZipError::KUBA_ZIP_ERROR, "Failed to extract " + fileName + " to " + targetFile->string() + " (code " + std::to_string(ec) + ")");
     }
 }
 
 void
-ZipArchive::uncompressAll(const fs::path &targetDir)
+ZipArchive::uncompressAll(const fs::path &targetDir, u64 maxFileSize)
 {
     for (auto &fileName : listFiles()) {
-        uncompress(fileName, targetDir);
+        uncompress(fileName, targetDir, maxFileSize);
     }
 }
-
-/*
-void
-ZipArchive::write(const fs::path &file)
-{
-    writeRelative( {file}, {} );
-}
-
-void
-ZipArchive::write(const std::vector<fs::path> &files)
-{
-    writeRelative (files, {});
-}
-*/
 
 void
 ZipArchive::write(const fs::path &file, const fs::path &root)
@@ -200,12 +185,12 @@ ZipArchive::write(const std::vector<fs::path> &files, const fs::path &root)
 
         auto rel = fs::relative(item, root);
 
-        if (rel.empty() || *rel.begin() == "..")
+        if (rel.empty() || rel.string().starts_with("..") || rel.is_absolute())
             throw IOError(IOError::FILE_NOT_FOUND, item);
 
-        ZipEntry open(zip, rel.generic_string().c_str());
+        ZipEntry open(zip.get(), rel.generic_string().c_str());
 
-        if (auto ec = zip_entry_fwrite(zip, item.string().c_str()); ec < 0)
+        if (auto ec = zip_entry_fwrite(zip.get(), item.string().c_str()); ec < 0)
             throw ZipError(ZipError::KUBA_ZIP_ERROR, ec);
     }
 }
@@ -213,22 +198,21 @@ ZipArchive::write(const std::vector<fs::path> &files, const fs::path &root)
 void
 ZipArchive::replace(const std::vector<fs::path> &files, const fs::path &root)
 {
-    // Create a new archive
-    ZipArchive temporary(path.concat(".tmp"), 'w');
+    fs::path tempPath = path.string() + ".tmp";
+    ZipArchive temporary(tempPath, 'w');
 
-    // Add all files
     temporary.write(files, root);
 
-    // Close both archives
     temporary.close();
     close();
 
-    // Replace the old archive with the new one on disk
-    fs::rename(temporary.path, path);
+    fs::rename(tempPath, path);
 
-    // Reopen the archive
-    if (zip = zip_open(path.string().c_str(), 0, 'r'); zip == nullptr)
+    zip_t *rawZip = zip_open(path.string().c_str(), 0, 'r');
+    if (rawZip == nullptr)
         throw ZipError(ZipError::INVALID_ARCHIVE, path);
+
+    zip.reset(rawZip);
 }
 
 }

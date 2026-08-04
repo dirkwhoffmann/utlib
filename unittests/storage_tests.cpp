@@ -242,4 +242,14 @@ TEST_CASE("ZipArchive") {
 
         CHECK_THROWS(ZipArchive(dir / "missing.zip"));
     }
+
+    SUBCASE("Path traversal security check") {
+
+        auto out = dir / "out";
+        fs::create_directories(out);
+
+        ZipArchive zip(archive, 'w');
+        CHECK_THROWS_AS(zip.uncompress("../../../etc/passwd", out), ZipError);
+        CHECK_THROWS_AS(zip.uncompress("../escaped.txt", out), ZipError);
+    }
 }
