@@ -9,118 +9,76 @@
 
 /* The Loggable interface provides a framework for printing log messages.
  *
- * The framework maintains a list of output channels. The `subscribe` method
- * returns a handle to a channel and creates a new channel on-the-fly if it
- * does not exist yet. Each output channel consists of an identifier, an
- * optional severity threshold, and an optional human-readable description.
+ * Messages are generated via the log function and are always written to
+ * stderr.
  *
- * The severity threshold is used to filter messages based on their severity.
- * Severity levels are based on BSD syslog conventions, where lower numbers
- * indicate higher urgency. If no threshold is set, the channel is disabled;
- * no output is printed.
+ * The log levels follow the conventional log4j-style hierarchy:
  *
- * Messages are generated via the log function.
+ *   OFF:   The highest possible rank. Intended to turn off logging.
+ *   FATAL: Severe errors that cause premature termination.
+ *   ERROR: Other runtime errors or unexpected conditions.
+ *   WARN:  Runtime situations that are undesirable or unexpected.
+ *   INFO:  Interesting runtime events.
+ *   DEBUG: Detailed information on the flow through the system.
+ *   TRACE: Most detailed information.
  */
 
 #pragma once
 
-#include "utl/abilities/Reflectable.h"
+#include "utl/common.h"
 #include <source_location>
 
 namespace utl {
 
-using LogChannel = isize;
+inline constexpr long LOG_OFF   = 0;
+inline constexpr long LOG_FATAL = 1;
+inline constexpr long LOG_ERROR = 2;
+inline constexpr long LOG_WARN  = 3;
+inline constexpr long LOG_INFO  = 4;
+inline constexpr long LOG_DEBUG = 5;
+inline constexpr long LOG_TRACE = 6;
 
-enum class LogLevel : long
-{
-    LOG_EMERG   = 0,
-    LOG_ALERT   = 1,
-    LOG_CRIT    = 2,
-    LOG_ERR     = 3,
-    LOG_WARNING = 4,
-    LOG_NOTICE  = 5,
-    LOG_INFO    = 6,
-    LOG_DEBUG   = 7
-};
 
-struct LogLevelEnum : Reflectable<LogLevelEnum, LogLevel>
-{
-    static constexpr long minVal = 0;
-    static constexpr long maxVal = (long)LogLevel::LOG_DEBUG;
+/* Descriptor of a single debug flag.
+ *
+ * Client code declares its flags in X-macro tables (see debug.h) and
+ * expands those tables into a vector of descriptors. In projects that
+ * combine several independent libraries, each with its own debug flags,
+ * the descriptor provides a uniform way to list and modify all of
+ * them without any library having to know about the others. Both accessors
+ * funnel through 'isize', so that logging, bool, and plain value flags can
+ * share a single descriptor type.
+ *
+ * Descriptor tables exist in debug builds only. In release builds the flags
+ * are 'constexpr': they cannot be assigned, and taking their address would
+ * needlessly emit all of them into the binary.
+ */
 
-    static const char *_key(long value) { return _key(LogLevel(value)); }
-    static const char *_key(LogLevel value)
-    {
-        switch (value) {
+struct FlagInfo {
 
-            case LogLevel::LOG_EMERG:   return "LV_EMERGENCY";
-            case LogLevel::LOG_ALERT:   return "LV_ALERT";
-            case LogLevel::LOG_CRIT:    return "LV_CRITICAL";
-            case LogLevel::LOG_ERR:     return "LV_ERROR";
-            case LogLevel::LOG_WARNING: return "LV_WARNING";
-            case LogLevel::LOG_NOTICE:  return "LV_NOTICE";
-            case LogLevel::LOG_INFO:    return "LV_INFO";
-            case LogLevel::LOG_DEBUG:   return "LV_DEBUG";
-        }
-        return "???";
-    }
-    static const char *help(long value) { return help(LogLevel(value)); }
-    static const char *help(LogLevel value)
-    {
-        switch (value) {
+    // Name of the flag, as written in the declaration table
+    const char *name;
 
-            case LogLevel::LOG_EMERG:   return "System is unusable";
-            case LogLevel::LOG_ALERT:   return "Immediate action required";
-            case LogLevel::LOG_CRIT:    return "Critical condition";
-            case LogLevel::LOG_ERR:     return "Error condition";
-            case LogLevel::LOG_WARNING: return "Warning condition";
-            case LogLevel::LOG_NOTICE:  return "Normal but significant condition";
-            case LogLevel::LOG_INFO:    return "Informational message";
-            case LogLevel::LOG_DEBUG:   return "Debug message";
-        }
-        return "???";
-    }
-};
+    // Human-readable description
+    const char *help;
 
-struct LogChannelInfo {
+    // Indicates whether this flag is a boolean switch
+    bool boolean;
 
-    // Channel identifier
-    string name;
-
-    // Severity threshold (empty optional blocks everything)
-    optional<LogLevel> level;
-
-    // Optional description
-    string description;
+    // Accessors
+    isize (*get)();
+    void (*set)(isize);
 };
 
 class Loggable {
 
-    // Returns a reference to the channel pool
-    static std::vector<LogChannelInfo> &channels();
-
 public:
 
-    // Returns the number of registered channels
-    static isize size() noexcept { return isize(channels().size()); }
-
-    // Returns all registered channels
-    static const std::vector<LogChannelInfo> &getChannels() noexcept { return channels(); }
-
-    // Looks up an existing channel or creates a new one if it does not exist
-    static LogChannel subscribe(string name, optional<long> level, string description = "");
-    static LogChannel subscribe(string name, optional<LogLevel> level, string description = "");
-
-    // Modifies the severity threshold of an existing channel
-    static void setLevel(isize nr, optional<LogLevel> level);
-    static void setLevel(string name, optional<LogLevel> level);
-
-    // Output functions (called by macro wrappers)
+    // Output function (called by macro wrappers)
 #if defined(__clang__)
-    __attribute__((format(printf, 5, 6)))
+    __attribute__((format(printf, 4, 5)))
 #endif
-    void log(LogChannel channel,
-             LogLevel level,
+    void log(long level,
              const std::source_location &loc,
              const char *fmt, ...) const;
 
@@ -131,7 +89,26 @@ public:
 protected:
 
     // Optional prefix printed prior to the debug message
-    virtual string prefix(LogLevel, const std::source_location &) const;
+    virtual string prefix(long, const std::source_location &) const;
 };
+
+
+//
+// Logging macros
+//
+
+#ifdef logmsg
+#undef logmsg
+#endif
+
+#define logmsg(key, format, ...) \
+    do { \
+        if CONSTEXPR (key != LOG_OFF) \
+            log(key, std::source_location::current(), \
+                format __VA_OPT__(,) __VA_ARGS__); \
+    } while (0)
+
+#define xfiles(format, ...) \
+    logmsg(LOG_XFILES, format __VA_OPT__(,) __VA_ARGS__)
 
 }
