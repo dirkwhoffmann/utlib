@@ -404,18 +404,25 @@ TEST_CASE("Float80: Rounding mode") {
         CHECK_EQ(Float80::fromDouble(-2.5).toInt32(), -3);
     }
 
-    SUBCASE("Integer conversion saturates") {
+    SUBCASE("Out-of-range integer conversion") {
+
+        /* The value that is returned depends on the NaN / overflow
+         * specialization of SoftFloat (currently x87 semantics, which return
+         * the "integer indefinite" value). The invalid flag is raised in any case.
+         */
+        auto extreme32 = [](i32 v) { return v == INT32_MAX || v == INT32_MIN; };
+        auto extreme64 = [](i64 v) { return v == INT64_MAX || v == INT64_MIN; };
 
         FloatEnv::clearFlags();
-        CHECK_EQ(Float80::fromDouble(1e20).toInt32(), INT32_MAX);
+        CHECK(extreme32(Float80::fromDouble(1e20).toInt32()));
         CHECK_EQ(FloatEnv::flags(), FloatFlags::INVALID);
 
         FloatEnv::clearFlags();
-        CHECK_EQ(Float80::fromDouble(-1e20).toInt32(), INT32_MIN);
+        CHECK(extreme32(Float80::fromDouble(-1e20).toInt32()));
         CHECK_EQ(FloatEnv::flags(), FloatFlags::INVALID);
 
         FloatEnv::clearFlags();
-        CHECK_EQ(Float80::fromDouble(1e30).toInt64(), INT64_MAX);
+        CHECK(extreme64(Float80::fromDouble(1e30).toInt64()));
         CHECK_EQ(FloatEnv::flags(), FloatFlags::INVALID);
     }
 
@@ -584,12 +591,12 @@ TEST_CASE("FloatEnv") {
 
     SUBCASE("Scope can discard flags") {
 
-        FloatEnv::raiseFlags(FloatFlags::DENORMAL);
+        FloatEnv::raiseFlags(FloatFlags::UNFL);
         {
             FloatEnv::Scope scope(true);
             N(1) / N(3);
         }
-        CHECK_EQ(FloatEnv::flags(), FloatFlags::DENORMAL);
+        CHECK_EQ(FloatEnv::flags(), FloatFlags::UNFL);
     }
 
     SUBCASE("The environment is thread-local") {

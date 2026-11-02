@@ -61,13 +61,12 @@ enum class Precision : int {
 // Exception flags. They are sticky: Once raised, a flag stays set until cleared.
 struct FloatFlags {
 
-    static constexpr u8 INVALID     = 0x01;
-    static constexpr u8 DENORMAL    = 0x02;
-    static constexpr u8 DIV_BY_ZERO = 0x04;
-    static constexpr u8 OVFL        = 0x08;
-    static constexpr u8 UNFL        = 0x10;
-    static constexpr u8 INEXACT     = 0x20;
-    static constexpr u8 ALL         = 0x3F;
+    static constexpr u8 INEXACT     = 0x01;
+    static constexpr u8 UNFL        = 0x02;   ///< Underflow
+    static constexpr u8 OVFL        = 0x04;   ///< Overflow
+    static constexpr u8 DIV_BY_ZERO = 0x08;
+    static constexpr u8 INVALID     = 0x10;
+    static constexpr u8 ALL         = 0x1F;
 };
 
 class FloatEnv {

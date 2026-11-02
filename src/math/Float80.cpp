@@ -8,31 +8,41 @@
 // -----------------------------------------------------------------------------
 
 #include "utl/math/Float80.h"
-#include "softfloat/softfloat.h"
+#include "platform.h"
+#include "utl_env.h"
 #include <bit>
 #include <cfloat>
 #include <cstring>
 
-namespace utl {
+extern "C" {
+#include "softfloat.h"
+#include "internals.h"
+}
 
-namespace sf = ::softfloat;
+namespace utl {
 
 namespace {
 
 // Conversion between Float80 and the SoftFloat representation
-inline sf::floatx80
+inline extFloat80_t
 toSF(const Float80 &x)
 {
-    sf::floatx80 result;
-    result.high = x.signExp();
-    result.low = x.mantissa();
+    extFloat80_t result;
+    result.signExp = x.signExp();
+    result.signif = x.mantissa();
     return result;
 }
 
 inline Float80
-fromSF(const sf::floatx80 &x)
+fromSF(const extFloat80_t &x)
 {
-    return Float80::fromBits(x.high, x.low);
+    return Float80::fromBits(x.signExp, x.signif);
+}
+
+inline uint_fast8_t
+roundingModeOf()
+{
+    return utl_sf_getRoundingMode();
 }
 
 }
@@ -45,11 +55,11 @@ fromSF(const sf::floatx80 &x)
 RoundingMode
 FloatEnv::roundingMode()
 {
-    switch (sf::float_rounding_mode) {
+    switch (utl_sf_getRoundingMode()) {
 
-        case sf::float_round_to_zero:   return RoundingMode::ZERO;
-        case sf::float_round_down:      return RoundingMode::DOWN;
-        case sf::float_round_up:        return RoundingMode::UP;
+        case softfloat_round_minMag:    return RoundingMode::ZERO;
+        case softfloat_round_min:       return RoundingMode::DOWN;
+        case softfloat_round_max:       return RoundingMode::UP;
         default:                        return RoundingMode::NEAREST;
     }
 }
@@ -59,17 +69,17 @@ FloatEnv::setRoundingMode(RoundingMode mode)
 {
     switch (mode) {
 
-        case RoundingMode::NEAREST: sf::float_rounding_mode = sf::float_round_nearest_even; break;
-        case RoundingMode::ZERO:    sf::float_rounding_mode = sf::float_round_to_zero; break;
-        case RoundingMode::DOWN:    sf::float_rounding_mode = sf::float_round_down; break;
-        case RoundingMode::UP:      sf::float_rounding_mode = sf::float_round_up; break;
+        case RoundingMode::NEAREST: utl_sf_setRoundingMode(softfloat_round_near_even); break;
+        case RoundingMode::ZERO:    utl_sf_setRoundingMode(softfloat_round_minMag); break;
+        case RoundingMode::DOWN:    utl_sf_setRoundingMode(softfloat_round_min); break;
+        case RoundingMode::UP:      utl_sf_setRoundingMode(softfloat_round_max); break;
     }
 }
 
 Precision
 FloatEnv::precision()
 {
-    switch (sf::floatx80_rounding_precision) {
+    switch (utl_sf_getPrecision()) {
 
         case 32:    return Precision::SINGLE;
         case 64:    return Precision::DOUBLE;
@@ -80,25 +90,25 @@ FloatEnv::precision()
 void
 FloatEnv::setPrecision(Precision precision)
 {
-    sf::floatx80_rounding_precision = (sf::int8)precision;
+    utl_sf_setPrecision((uint_fast8_t)precision);
 }
 
 u8
 FloatEnv::flags()
 {
-    return (u8)sf::float_exception_flags;
+    return (u8)utl_sf_getFlags();
 }
 
 void
 FloatEnv::clearFlags(u8 mask)
 {
-    sf::float_exception_flags &= (sf::int8)~mask;
+    utl_sf_setFlags((uint_fast8_t)(utl_sf_getFlags() & ~mask));
 }
 
 void
 FloatEnv::raiseFlags(u8 mask)
 {
-    sf::float_exception_flags |= (sf::int8)(mask & FloatFlags::ALL);
+    utl_sf_setFlags((uint_fast8_t)(utl_sf_getFlags() | (mask & FloatFlags::ALL)));
 }
 
 FloatEnv::Scope::Scope(bool restoreFlags) : restoreFlags(restoreFlags)
@@ -128,21 +138,21 @@ Float80
 Float80::fromInt(i64 value)
 {
     // The conversion is always exact
-    return fromSF(sf::int64_to_floatx80(value));
+    return fromSF(i64_to_extF80(value));
 }
 
 Float80
 Float80::fromFloat(float value)
 {
     // The conversion is always exact. Signaling NaNs raise the invalid flag.
-    return fromSF(sf::float32_to_floatx80(std::bit_cast<u32>(value)));
+    return fromSF(f32_to_extF80(float32_t{ std::bit_cast<u32>(value) }));
 }
 
 Float80
 Float80::fromDouble(double value)
 {
     // The conversion is always exact. Signaling NaNs raise the invalid flag.
-    return fromSF(sf::float64_to_floatx80(std::bit_cast<u64>(value)));
+    return fromSF(f64_to_extF80(float64_t{ std::bit_cast<u64>(value) }));
 }
 
 Float80
@@ -171,37 +181,37 @@ Float80::fromLongDouble(long double value)
 i32
 Float80::toInt32() const
 {
-    return sf::floatx80_to_int32(toSF(*this));
+    return extF80_to_i32(toSF(*this), roundingModeOf(), true);
 }
 
 i32
 Float80::toInt32Truncated() const
 {
-    return sf::floatx80_to_int32_round_to_zero(toSF(*this));
+    return extF80_to_i32(toSF(*this), softfloat_round_minMag, true);
 }
 
 i64
 Float80::toInt64() const
 {
-    return sf::floatx80_to_int64(toSF(*this));
+    return extF80_to_i64(toSF(*this), roundingModeOf(), true);
 }
 
 i64
 Float80::toInt64Truncated() const
 {
-    return sf::floatx80_to_int64_round_to_zero(toSF(*this));
+    return extF80_to_i64(toSF(*this), softfloat_round_minMag, true);
 }
 
 float
 Float80::toFloat() const
 {
-    return std::bit_cast<float>((u32)sf::floatx80_to_float32(toSF(*this)));
+    return std::bit_cast<float>(extF80_to_f32(toSF(*this)).v);
 }
 
 double
 Float80::toDouble() const
 {
-    return std::bit_cast<double>((u64)sf::floatx80_to_float64(toSF(*this)));
+    return std::bit_cast<double>(extF80_to_f64(toSF(*this)).v);
 }
 
 long double
@@ -249,43 +259,43 @@ Float80::abs() const
 Float80
 Float80::operator+(const Float80 &rhs) const
 {
-    return fromSF(sf::floatx80_add(toSF(*this), toSF(rhs)));
+    return fromSF(extF80_add(toSF(*this), toSF(rhs)));
 }
 
 Float80
 Float80::operator-(const Float80 &rhs) const
 {
-    return fromSF(sf::floatx80_sub(toSF(*this), toSF(rhs)));
+    return fromSF(extF80_sub(toSF(*this), toSF(rhs)));
 }
 
 Float80
 Float80::operator*(const Float80 &rhs) const
 {
-    return fromSF(sf::floatx80_mul(toSF(*this), toSF(rhs)));
+    return fromSF(extF80_mul(toSF(*this), toSF(rhs)));
 }
 
 Float80
 Float80::operator/(const Float80 &rhs) const
 {
-    return fromSF(sf::floatx80_div(toSF(*this), toSF(rhs)));
+    return fromSF(extF80_div(toSF(*this), toSF(rhs)));
 }
 
 Float80
 Float80::sqrt() const
 {
-    return fromSF(sf::floatx80_sqrt(toSF(*this)));
+    return fromSF(extF80_sqrt(toSF(*this)));
 }
 
 Float80
 Float80::rem(const Float80 &rhs) const
 {
-    return fromSF(sf::floatx80_rem(toSF(*this), toSF(rhs)));
+    return fromSF(extF80_rem(toSF(*this), toSF(rhs)));
 }
 
 Float80
 Float80::roundToInt() const
 {
-    return fromSF(sf::floatx80_round_to_int(toSF(*this)));
+    return fromSF(extF80_roundToInt(toSF(*this), roundingModeOf(), true));
 }
 
 Float80
@@ -325,8 +335,7 @@ Float80::scale(const Float80 &rhs) const
     e -= shift;
 
     // Let SoftFloat do the rounding and the exception handling
-    return fromSF(sf::roundAndPackFloatx80(sf::floatx80_rounding_precision,
-                                           sign(), e + n, m, 0));
+    return fromSF(softfloat_roundPackToExtF80(sign(), e + n, m, 0, utl_sf_getPrecision()));
 }
 
 
@@ -337,19 +346,19 @@ Float80::scale(const Float80 &rhs) const
 bool
 Float80::operator==(const Float80 &rhs) const
 {
-    return sf::floatx80_eq(toSF(*this), toSF(rhs));
+    return extF80_eq(toSF(*this), toSF(rhs));
 }
 
 bool
 Float80::operator<(const Float80 &rhs) const
 {
-    return sf::floatx80_lt(toSF(*this), toSF(rhs));
+    return extF80_lt(toSF(*this), toSF(rhs));
 }
 
 bool
 Float80::operator<=(const Float80 &rhs) const
 {
-    return sf::floatx80_le(toSF(*this), toSF(rhs));
+    return extF80_le(toSF(*this), toSF(rhs));
 }
 
 }

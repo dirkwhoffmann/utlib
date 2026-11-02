@@ -26,12 +26,16 @@ target_include_directories(utlib PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty)
 
+# SoftFloat (used by utl::Float80)
+target_include_directories(utlib PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/softfloat/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/softfloat/source/8086)
+
 target_compile_features(utlib PUBLIC cxx_std_20)
 
 file(GLOB_RECURSE UTL_SRC
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/*.c"
-        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/softfloat/*.cpp")
+        "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/*.c")
 
 target_sources(utlib PRIVATE ${UTL_SRC})
 

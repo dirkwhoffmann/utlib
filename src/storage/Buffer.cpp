@@ -286,6 +286,8 @@ template void Buffer<T>::init(isize bytes); \
 template void Buffer<T>::init(isize bytes, T value); \
 template void Buffer<T>::init(const T *buf, isize len); \
 template void Buffer<T>::init(const Buffer<T> &other); \
+template void Buffer<T>::init(const string &str); \
+template void Buffer<T>::init(const std::vector<T> &vector); \
 template void Buffer<T>::init(const fs::path &path); \
 template void Buffer<T>::resize(isize elements); \
 template void Buffer<T>::resize(isize elements, T value); \
