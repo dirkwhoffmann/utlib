@@ -12,6 +12,7 @@ add_executable(unittester
     storage_tests.cpp
     abilities_tests.cpp
     buffer_tests.cpp
+    math_tests.cpp
 )
 
 target_link_libraries(unittester PRIVATE utlib)
