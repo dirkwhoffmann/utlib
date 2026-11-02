@@ -92,23 +92,4 @@ protected:
     virtual string prefix(long, const std::source_location &) const;
 };
 
-
-//
-// Logging macros
-//
-
-#ifdef logmsg
-#undef logmsg
-#endif
-
-#define logmsg(key, format, ...) \
-    do { \
-        if CONSTEXPR (key != LOG_OFF) \
-            log(key, std::source_location::current(), \
-                format __VA_OPT__(,) __VA_ARGS__); \
-    } while (0)
-
-#define xfiles(format, ...) \
-    logmsg(LOG_XFILES, format __VA_OPT__(,) __VA_ARGS__)
-
 }

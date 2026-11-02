@@ -257,10 +257,10 @@ TEST_CASE("Dumpable: rendering") {
 
         buf.dump(narrow, DumpOpt { .base = 16 },
                  DumpFmt { .size = 'b', .columns = 8, .groups = 1,
-                           .nr = false, .offset = true, .ascii = false });
+                           .offset = 0, .ascii = false });
         buf.dump(wide, DumpOpt { .base = 16 },
                  DumpFmt { .size = 'b', .columns = 16, .groups = 1,
-                           .nr = false, .offset = true, .ascii = false });
+                           .offset = 0, .ascii = false });
 
         /* Compared against each other rather than against an absolute line
          * count: halving the column count has to lengthen the dump, and that
@@ -276,10 +276,74 @@ TEST_CASE("Dumpable: rendering") {
         CHECK(wide.str().find("00000010") != std::string::npos);
     }
 
+    SUBCASE("The format string accepts a width for the offset column") {
+
+        const u8 data[] = { 0x12, 0x34 };
+        std::ostringstream os;
+        Dumpable::dump(os, DumpOpt { .base = 16 }, "%6p: %b %b\n", Dumpable::dataProvider(data, 2));
+
+        CHECK(os.str() == "000000: 12 34\n");
+    }
+
+    SUBCASE("The offset and line number columns start at a given value") {
+
+        const u8 data[] = { 1, 2, 3, 4 };
+        std::ostringstream os;
+        Dumpable::dump(os, DumpOpt { .base = 16 },
+                       DumpFmt { .size = 'b', .columns = 2, .nr = 5, .offset = 0x100, .ascii = false },
+                       Dumpable::dataProvider(data, 4));
+
+        CHECK(os.str().find("5: 00000100:") != std::string::npos);
+        CHECK(os.str().find("6: 00000102:") != std::string::npos);
+    }
+
+    SUBCASE("Unavailable values use the fill character") {
+
+        const u8 data[] = { 0xAB };
+        std::ostringstream os;
+        auto reader = [&](isize offset, isize) -> optional<isize> {
+            if (offset == 0) return data[0];
+            if (offset == 1) return {};
+            return {};
+        };
+        // The dump ends when the reader runs dry, so provide a second line's worth
+        Dumpable::dump(os, DumpOpt { .base = 16, .missing = '-' }, "%b %b\n", reader);
+
+        CHECK(os.str() == "ab --\n");
+    }
+
+    SUBCASE("Hexadecimal digits can be shown in upper case") {
+
+        const u8 data[] = { 0xAB };
+        std::ostringstream os;
+        Dumpable::dump(os, DumpOpt { .base = 16, .uppercase = true }, "%b\n", Dumpable::dataProvider(data, 1));
+
+        CHECK(os.str() == "AB\n");
+    }
+
+    SUBCASE("Decimal numbers can be padded with zeros") {
+
+        const u8 data[] = { 5, 42 };
+        std::ostringstream os;
+        Dumpable::dump(os, DumpOpt { .base = 10, .pad = '0' }, "%b %b\n", Dumpable::dataProvider(data, 2));
+
+        CHECK(os.str() == "005 042\n");
+    }
+
+    SUBCASE("A custom predicate decides which characters are shown") {
+
+        const u8 data[] = { 'A', 'a' };
+        std::ostringstream os;
+        DumpOpt opt { .base = 16, .printable = [](int c) { return c >= 'A' && c <= 'Z'; } };
+        Dumpable::dump(os, opt, "%c%c\n", Dumpable::dataProvider(data, 2));
+
+        CHECK(os.str() == "A.\n");
+    }
+
     SUBCASE("DumpFmt::fmt translates the options to a format string") {
 
         DumpFmt f { .size = 'b', .columns = 4, .groups = 0,
-                    .nr = false, .offset = true, .ascii = true };
+                    .offset = 0, .ascii = true };
 
         CHECK_FALSE(f.fmt().empty());
     }
